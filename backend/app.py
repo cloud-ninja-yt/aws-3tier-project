@@ -8,6 +8,12 @@ from flask_cors import CORS
 app = Flask(__name__)
 CORS(app)  # This will enable CORS for all routes
 
+
+# Database connection variables
+db_host = '' # Your RDS database endpoint
+db_user = 'admin' # Your RDS database user name
+db_password = ''  # Your RDS database password
+
 # URL to download the SSL certificate bundle
 ssl_cert_url = 'https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem'
 ssl_cert_path = '/home/ec2-user/ssl/us-east-1-bundle.pem'
@@ -25,9 +31,9 @@ else:
     raise Exception(f"Failed to download SSL certificate bundle: {response.status_code}")
 
 def get_db_connection(database=None):
-    connection = pymysql.connect(host='database-1.cluster-c96ms4weicsz.us-east-1.rds.amazonaws.com',
-                                 user='admin',
-                                 password='_ycvZZV4gNt#R(?BB[T>-fob21w4',  # Your provided password
+    connection = pymysql.connect(host=db_host,
+                                 user=db_user,
+                                 password=db_password,  
                                  database=database,
                                  ssl={'ca': ssl_cert_path})
     return connection
