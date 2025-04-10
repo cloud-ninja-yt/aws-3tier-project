@@ -84,20 +84,28 @@ def download_ssl_cert(url, path):
 
 # Function to get a database connection
 def get_db_connection(database=None):
-    connection = pymysql.connect(
-        host=db_host,
-        user=db_user,
-        password=db_password,
-        database=database,
-        ssl={'ca': ssl_cert_path}
-    )
-    return connection
+    try:
+        connection = pymysql.connect(
+            host=db_host,
+            user=db_user,
+            password=db_password,
+            database=database,
+            ssl={'ca': ssl_cert_path}
+        )
+        logging.info("Database connection successful")
+        return connection
+    except Exception as e:
+        logging.error(f"Database connection failed: {e}")
+        return None
 
 # Function to create the database and tables
 def create_database_and_tables():
     try:
         # Connect to the RDS instance without specifying a database
         connection = get_db_connection()
+        if connection is None:
+            logging.error("Failed to connect to database for seeding")
+            return
         cursor = connection.cursor()
         cursor.execute('CREATE DATABASE IF NOT EXISTS corn_db')
         cursor.close()
