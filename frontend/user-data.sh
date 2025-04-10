@@ -2,7 +2,7 @@
 # This script is run on the EC2 instance at launch time
 # It installs the necessary packages and starts the web server
 sudo yum update -y
-sudo yum install -y nodejs npm
+sudo yum install -y nodejs npm git
 git clone https://github.com/cloud-ninja-yt/aws-3tier-project.git
 npx create-react-app corn-app-frontend
 cd corn-app-frontend

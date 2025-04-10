@@ -4,7 +4,7 @@ import json
 import requests
 import boto3
 import pymysql
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 # Initialize Flask app
@@ -107,8 +107,7 @@ def create_database_and_tables():
             CREATE TABLE IF NOT EXISTS corn (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 name VARCHAR(100) NOT NULL,
-                characteristics TEXT NOT NULL,
-                uses TEXT NOT NULL
+                characteristics TEXT NOT NULL
             )
         ''')
         cursor.close()
@@ -134,8 +133,8 @@ def seed_database():
                 ("Pod Corn", "An ancient variety where each kernel is enclosed in a husk. It's not commonly grown commercially.")
             ]
             cursor.executemany('''
-                INSERT INTO corn (name, characteristics, uses)
-                VALUES (%s, %s, %s)
+                INSERT INTO corn (name, characteristics)
+                VALUES (%s, %s)
             ''', [(name, characteristics, "") for name, characteristics in corn_types])
             connection.commit()
             print("Database seeded with initial corn types")
@@ -160,8 +159,7 @@ def get_corn_entries():
             corn_entries.append({
                 'id': row[0],
                 'name': row[1],
-                'characteristics': row[2],
-                'uses': row[3]
+                'characteristics': row[2]
             })
 
         return jsonify({'corn_entries': corn_entries})
@@ -192,5 +190,38 @@ if __name__ == '__main__':
         create_database_and_tables()
         seed_database()
 
-    # Run the Flask app
+    # Route to handle POST request to add a new corn entry
+    @app.route('/corn', methods=['POST'])
+    def add_corn():
+        data = request.get_json()
+        name = data.get('name')
+        characteristics = data.get('characteristics')
+        try:
+            connection = get_db_connection(database='corn_db')
+            cursor = connection.cursor()
+            cursor.execute('''
+                INSERT INTO corn (name, characteristics)
+                VALUES (%s, %s)
+            ''', (name, characteristics))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return jsonify({'message': 'Corn entry added successfully'}), 201
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
+    # Route to handle DELETE request to delete a corn entry by id
+    @app.route('/corn/<int:id>', methods=['DELETE'])
+    def delete_corn(id):
+        try:
+            connection = get_db_connection(database='corn_db')
+            cursor = connection.cursor()
+            cursor.execute('DELETE FROM corn WHERE id = %s', (id,))
+            connection.commit()
+            cursor.close()
+            connection.close()
+            return jsonify({'message': 'Corn entry deleted successfully'}), 200
+        except Exception as e:
+            return jsonify({'error': str(e)}), 500
+
     app.run(debug=True, host='0.0.0.0')
