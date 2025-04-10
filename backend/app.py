@@ -4,12 +4,16 @@ import json
 import requests
 import boto3
 import pymysql
+import logging
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
 CORS(app)  # Enable CORS for all routes
+
+# Configure logging
+logging.basicConfig(filename='/var/log/backend.log', level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
 
 # Function to retrieve the secret from AWS Secrets Manager
 def get_secret(region_name):
