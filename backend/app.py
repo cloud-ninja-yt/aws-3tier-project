@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 import requests
 import boto3
@@ -24,7 +25,7 @@ def get_secret(region_name):
         # Parse the secret value
         secret = json.loads(get_secret_value_response['SecretString'])
         
-        db_user = secret['username']
+        db_user = secret['username']  # Ensure the keys match the secret structure
         db_password = secret['password']
         
         return db_user, db_password
@@ -36,11 +37,34 @@ def get_secret(region_name):
 # Function to retrieve the region from EC2 instance metadata
 def get_region():
     try:
-        response = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document')
-        metadata = response.json()
-        return metadata['region']
-    except Exception as e:
-        print(f"Error retrieving region: {e}")
+        # Obtain a token
+        token_response = requests.put(
+            'http://169.254.169.254/latest/api/token',
+            headers={'X-aws-ec2-metadata-token-ttl-seconds': '21600'}
+        )
+        if token_response.status_code != 200:
+            print(f"Error obtaining token: HTTP {token_response.status_code}")
+            return None
+
+        token = token_response.text
+
+        # Use the token to get metadata
+        response = requests.get(
+            'http://169.254.169.254/latest/dynamic/instance-identity/document',
+            headers={'X-aws-ec2-metadata-token': token}
+        )
+        if response.status_code == 200:
+            metadata = response.json()
+            return metadata['region']
+        else:
+            print(f"Error retrieving region: HTTP {response.status_code}")
+            return None
+    except requests.exceptions.RequestException as e:
+        print(f"RequestException: {e}")
+        return None
+    except json.JSONDecodeError as e:
+        print(f"JSONDecodeError: {e}")
+        print(f"Response content: {response.content}")
         return None
 
 # Function to download the SSL certificate bundle
@@ -154,8 +178,6 @@ if __name__ == '__main__':
 
     # Retrieve secret values
     db_user, db_password = get_secret(region_name)
-    print(f"DB User: {db_user}")
-    print(f"DB Password: {db_password}")
 
     # Database connection variables
     db_host = os.getenv('DB_HOST')
