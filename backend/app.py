@@ -1,43 +1,71 @@
+import os
+import json
+import requests
+import boto3
 import pymysql
 from flask import Flask, jsonify
-import os
-import ssl
-import requests
 from flask_cors import CORS
 
+# Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # This will enable CORS for all routes
+CORS(app)  # Enable CORS for all routes
 
+# Function to retrieve the secret from AWS Secrets Manager
+def get_secret(region_name):
+    secret_name = os.getenv('SECRET_NAME')  # The name of your secret in AWS Secrets Manager
 
-# Database connection variables
-db_host = '' # Your RDS database endpoint
-db_user = 'admin' # Your RDS database user name
-db_password = ''  # Your RDS database password
+    # Create a Secrets Manager client
+    client = boto3.client('secretsmanager', region_name=region_name)
 
-# URL to download the SSL certificate bundle
-ssl_cert_url = 'https://truststore.pki.rds.amazonaws.com/us-east-1/us-east-1-bundle.pem'
-ssl_cert_path = '/home/ec2-user/ssl/us-east-1-bundle.pem'
+    try:
+        # Retrieve the secret value
+        get_secret_value_response = client.get_secret_value(SecretId=secret_name)
+        
+        # Parse the secret value
+        secret = json.loads(get_secret_value_response['SecretString'])
+        
+        db_user = secret['username']
+        db_password = secret['password']
+        
+        return db_user, db_password
 
-# Ensure the directory exists
-os.makedirs(os.path.dirname(ssl_cert_path), exist_ok=True)
+    except Exception as e:
+        print(f"Error retrieving secret: {e}")
+        return None, None
 
-# Download the SSL certificate bundle
-response = requests.get(ssl_cert_url)
-if response.status_code == 200:
-    with open(ssl_cert_path, 'wb') as cert_file:
-        cert_file.write(response.content)
-    print(f"SSL certificate downloaded successfully to {ssl_cert_path}")
-else:
-    raise Exception(f"Failed to download SSL certificate bundle: {response.status_code}")
+# Function to retrieve the region from EC2 instance metadata
+def get_region():
+    try:
+        response = requests.get('http://169.254.169.254/latest/dynamic/instance-identity/document')
+        metadata = response.json()
+        return metadata['region']
+    except Exception as e:
+        print(f"Error retrieving region: {e}")
+        return None
 
+# Function to download the SSL certificate bundle
+def download_ssl_cert(url, path):
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    response = requests.get(url)
+    if response.status_code == 200:
+        with open(path, 'wb') as cert_file:
+            cert_file.write(response.content)
+        print(f"SSL certificate downloaded successfully to {path}")
+    else:
+        raise Exception(f"Failed to download SSL certificate bundle: {response.status_code}")
+
+# Function to get a database connection
 def get_db_connection(database=None):
-    connection = pymysql.connect(host=db_host,
-                                 user=db_user,
-                                 password=db_password,  
-                                 database=database,
-                                 ssl={'ca': ssl_cert_path})
+    connection = pymysql.connect(
+        host=db_host,
+        user=db_user,
+        password=db_password,
+        database=database,
+        ssl={'ca': ssl_cert_path}
+    )
     return connection
 
+# Function to create the database and tables
 def create_database_and_tables():
     try:
         # Connect to the RDS instance without specifying a database
@@ -65,6 +93,7 @@ def create_database_and_tables():
     except Exception as e:
         print(f"Error creating database or table: {e}")
 
+# Function to seed the database with initial data
 def seed_database():
     try:
         connection = get_db_connection(database='corn_db')
@@ -91,6 +120,7 @@ def seed_database():
     except Exception as e:
         print(f"Error seeding database: {e}")
 
+# Route to get corn entries
 @app.route('/corn', methods=['GET'])
 def get_corn_entries():
     try:
@@ -116,7 +146,29 @@ def get_corn_entries():
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
+    # Retrieve the region from EC2 metadata
+    region_name = get_region()
+    if not region_name:
+        print("Error retrieving region")
+        sys.exit(1)
+
+    # Retrieve secret values
+    db_user, db_password = get_secret(region_name)
+    print(f"DB User: {db_user}")
+    print(f"DB Password: {db_password}")
+
+    # Database connection variables
+    db_host = os.getenv('DB_HOST')
+    ssl_cert_url = f'https://truststore.pki.rds.amazonaws.com/{region_name}/{region_name}-bundle.pem'
+    ssl_cert_path = f'/home/ec2-user/ssl/{region_name}-bundle.pem'
+
+    # Download SSL certificate bundle
+    download_ssl_cert(ssl_cert_url, ssl_cert_path)
+
+    # Create database and tables, and seed the database
     with app.app_context():
         create_database_and_tables()
         seed_database()
+
+    # Run the Flask app
     app.run(debug=True, host='0.0.0.0')
