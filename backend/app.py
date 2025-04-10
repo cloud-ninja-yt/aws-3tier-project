@@ -130,8 +130,12 @@ def create_database_and_tables():
 
 # Function to seed the database with initial data
 def seed_database():
+    logging.info("Seeding database...")
     try:
         connection = get_db_connection(database='corn_db')
+        if connection is None:
+            logging.error("Failed to connect to database for seeding")
+            return
         cursor = connection.cursor()
         cursor.execute('SELECT COUNT(*) FROM corn')
         count = cursor.fetchone()[0]
@@ -147,13 +151,15 @@ def seed_database():
             cursor.executemany('''
                 INSERT INTO corn (name, characteristics)
                 VALUES (%s, %s)
-            ''', [(name, characteristics, "") for name, characteristics in corn_types])
+            ''', corn_types)
             connection.commit()
-            print("Database seeded with initial corn types")
+            logging.info("Database seeded with initial corn types")
+        else:
+            logging.info("Database already seeded")
         cursor.close()
         connection.close()
     except Exception as e:
-        print(f"Error seeding database: {e}")
+        logging.error(f"Error seeding database: {e}")
 
 # Route to get corn entries
 @app.route('/corn', methods=['GET'])
