@@ -10,10 +10,18 @@ from flask_cors import CORS
 
 # Initialize Flask app
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+
+CORS(app, resources={r"*": {"origins": "*"}}, expose_headers="*", allow_headers="*")
 
 # Configure logging
 logging.basicConfig(filename='/var/log/backend.log', level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
+
+@app.after_request
+def after_request(response):
+    response.headers.add('Access-Control-Allow-Origin', '*')
+    response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
+    response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
+    return response
 
 # Function to retrieve the secret from AWS Secrets Manager
 def get_secret(region_name):
