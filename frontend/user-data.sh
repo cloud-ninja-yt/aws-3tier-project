@@ -14,4 +14,4 @@ sudo npm install -g serve
 # Build the React app 
 npm run build
 # Start the React app using serve
-serve -s -n build &
+# serve -s -n build &

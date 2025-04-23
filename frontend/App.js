@@ -12,7 +12,7 @@ function App() {
   }, []);
 
   const fetchCornData = () => {
-    axios.get('http://backend.cornhub.com:5000/corn')
+    axios.get('/api/corn')
       .then(response => {
         console.log(response.data); // Log the response data
         setCornData(response.data.corn_entries);
@@ -23,7 +23,7 @@ function App() {
   };
 
   const handleAddCorn = () => {
-    axios.post('http://backend.cornhub.com:5000/corn', newCorn)
+    axios.post('/api/corn', newCorn)
       .then(response => {
         console.log(response.data);
         fetchCornData();
@@ -35,7 +35,7 @@ function App() {
   };
 
   const handleDeleteCorn = (id) => {
-    axios.delete(`http://backend.cornhub.com:5000/corn/${id}`)
+    axios.delete(`/api/corn/${id}`)
       .then(response => {
         console.log(response.data);
         fetchCornData();
