@@ -14,10 +14,11 @@ app = Flask(__name__)
 CORS(app, resources={r"*": {"origins": "*"}}, expose_headers="*", allow_headers="*")
 
 # Configure logging
-logging.basicConfig(filename='/var/log/backend.log', level=logging.INFO,format='%(asctime)s %(levelname)s %(message)s')
+logging.basicConfig(filename='/var/log/backend.log', level=logging.INFO, format='%(asctime)s %(levelname)s %(message)s')
 
 @app.after_request
 def after_request(response):
+    # Add headers to allow cross-origin requests
     response.headers.add('Access-Control-Allow-Origin', '*')
     response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Authorization')
     response.headers.add('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS')
@@ -33,15 +34,15 @@ def get_secret(region_name):
     try:
         # Retrieve the secret value
         get_secret_value_response = client.get_secret_value(SecretId=secret_name)
-        
+
         # Parse the secret value
         secret = json.loads(get_secret_value_response['SecretString'])
-        
+
         db_user = secret['username']  # Ensure the keys match the secret structure
         db_password = secret['password']
-        
-        return db_user, db_password
 
+        return db_user, db_password
+    
     except Exception as e:
         print(f"Error retrieving secret: {e}")
         return None, None
@@ -57,7 +58,7 @@ def get_region():
         if token_response.status_code != 200:
             print(f"Error obtaining token: HTTP {token_response.status_code}")
             return None
-
+        
         token = token_response.text
 
         # Use the token to get metadata
@@ -187,7 +188,7 @@ def get_corn_entries():
                 'name': row[1],
                 'characteristics': row[2]
             })
-
+            
         return jsonify({'corn_entries': corn_entries})
     except Exception as e:
         print(f"Error retrieving corn entries: {e}")
@@ -250,4 +251,5 @@ if __name__ == '__main__':
         except Exception as e:
             return jsonify({'error': str(e)}), 500
 
+    # Run the Flask app
     app.run(debug=True, host='0.0.0.0')
